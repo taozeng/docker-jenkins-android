@@ -43,13 +43,14 @@ docker run -p 8080:8080 -p 50000:50000 \
 Example :
 
 ```
-docker run -p 8080:8080 -p 50000:50000 \
-           -e "ANDROID_BUILD_TOOLS_FILTER=23.0.2,23.0.3" \
-           -e "ANDROID_SDK=r25.2.2" \
-           -e "ANDROID_NDK=android-ndk-r12b" \
-           -v /home/user/Android/sdk:/opt/android/sdk \
-           -v /home/user/Android/ndk:/opt/android/ndk \
-           -v your_home/jenkins_home:/var/jenkins_home bertrandmartel/docker-jenkins-android
+docker run --name rootmetrics_jenkins \
+           -p 8080:8080 -p 50000:50000 \
+           -e "ANDROID_BUILD_TOOLS_FILTER=25.0.3,26.0.2,27.0.3" \
+           -e "ANDROID_SDK=r25.2.5" \
+           -e "ANDROID_NDK=android-ndk-r16b" \
+           -v /Users/Shared/Android/sdk:/opt/android/sdk \
+           -v /Users/Shared/Android/ndk:/opt/android/ndk \
+           -v /Users/Shared/jenkins_home:/var/jenkins_home docker-jenkins-android
 ```
 
 ## docker-compose
