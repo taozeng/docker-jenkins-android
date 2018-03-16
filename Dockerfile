@@ -1,6 +1,6 @@
-FROM jenkins:latest
+FROM jenkins/jenkins:latest
 
-MAINTAINER Bertrand Martel <bmartel.fr@gmail.com>
+MAINTAINER Tao Zeng <tao.zeng@ihsmarkit.com>
 
 USER root
 
