@@ -1,77 +1,60 @@
 #!/bin/bash -e
 
-export SDK_PATH=$1
-export NDK_PATH=$2
-export ANDROID_SDK=$3
-export ANDROID_NDK=$4
-export ANDROID_NDK_HOME=${NDK_PATH}/${ANDROID_NDK}
-export ANDROID_HOME=$SDK_PATH
+export NDK_VERSION=$1
+export CMAKE_VERSION=$2
+export ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}
+export ANDROID_CMAKE_HOME=$ANDROID_HOME/cmake/$CMAKE_VERSION
 
-: "${ANDROID_HOME:="$ANDROID_HOME"}"
 : "${ANDROID_SDK_ROOT:="$ANDROID_HOME"}"
-: "${ANDROID_NDK_HOME:="$ANDROID_NDK_HOME"}"
 
+echo "JENKINS_HOME     : $JENKINS_HOME"
 echo "ANDROID_HOME     : $ANDROID_HOME"
-echo "ANDROID_NDK_HOME : $ANDROID_NDK_HOME"
-echo "ANDROID_SDK_ROOT : $ANDROID_SDK_ROOT"
-echo "ERASE_ANDROID_SDK : $ERASE_ANDROID_SDK"
-echo "ERASE_ANDROID_NDK : $ERASE_ANDROID_NDK"
+echo "NDK_VERSION      : $NDK_VERSION"
+echo "CMAKE_VERSION    : $CMAKE_VERSION"
 
-export PATH=$PATH:$ANDROID_NDK_HOME:$ANDROID_HOME/tools
+export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+export PATH=$PATH:$ANDROID_NDK_HOME
+export PATH=$PATH:$ANDROID_CMAKE_HOME/bin
 
-if [ "$ERASE_ANDROID_NDK" == 1 ]; then
-	echo "removing ndk directory content..."
-	rm -rf ${NDK_PATH}/*
+# create cfg file to depress warnings
+mkdir -p $JENKINS_HOME/.android && touch $JENKINS_HOME/.android/repositories.cfg
+
+# cp licenses
+mkdir -p "$ANDROID_HOME/licenses" || true
+echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
+echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+
+# check if SDK manager is present
+if hash sdkmanager 2>/dev/null; then
+    echo "SDK TOOL already exists"
+else
+	echo "downloading SDK TOOL..."
+	wget --no-verbose https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip -O ${ANDROID_HOME}/sdk.zip
+	echo y | unzip ${ANDROID_HOME}/sdk.zip -d ${ANDROID_HOME} && rm ${ANDROID_HOME}/sdk.zip
+	echo "Android SDK TOOL has been installed to ${ANDROID_HOME}"
+	echo "download platform support..."
+	echo y | sdkmanager "platform-tools" "platforms;android-28" "build-tools;28.0.3"
 fi
 
-# check if NDK is present
-if hash ndk-build 2>/dev/null; then
+# always update tools
+echo "updating SDK tools..."
+sdkmanager --install tools
+
+# check ndk
+if [ -d "$ANDROID_NDK_HOME" ]; then
     echo "Android NDK already exists"
 else
-	mkdir -p ${NDK_PATH}
 	echo "downloading NDK..."
-	wget --no-verbose https://dl.google.com/android/repository/${ANDROID_NDK}-linux-x86_64.zip -O ${NDK_PATH}/ndk.zip
-	unzip ${NDK_PATH}/ndk.zip -d ${NDK_PATH} && rm ${NDK_PATH}/ndk.zip
-	echo "Android NDK has been installed to ${NDK_PATH}"
+	echo y | sdkmanager --install "ndk;$NDK_VERSION"
 fi
 
-if [ "$ERASE_ANDROID_SDK" == 1 ]; then
-	echo "removing sdk directory content..."
-	rm -rf ${SDK_PATH}/*
-fi
-
-# check if SDK is present
-if hash android 2>/dev/null; then
-    echo "Android SDK already exists"
+#check cmake
+if [ -d "$ANDROID_CMAKE_HOME" ]; then
+    echo "Android CMAKE already exists"
 else
-	mkdir -p ${SDK_PATH}
-	echo "downloading SDK..."
-	wget --no-verbose https://dl.google.com/android/repository/tools_${ANDROID_SDK}-linux.zip -O ${SDK_PATH}/sdk.zip
-	unzip ${SDK_PATH}/sdk.zip -d ${SDK_PATH} && rm ${SDK_PATH}/sdk.zip
-	echo "Android SDK has been installed to ${NDK_PATH}"
-fi
-
-mkdir -p "$SDK_PATH/licenses" || true
-echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > "$SDK_PATH/licenses/android-sdk-license"
-echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$SDK_PATH/licenses/android-sdk-preview-license"
-
-echo y | android update sdk --no-ui
-
-if [ ! -z "$ANDROID_BUILD_TOOLS_FILTER" ]; then
-
-	IFS=',' read -ra ADDR <<< "$ANDROID_BUILD_TOOLS_FILTER"
-	for i in "${ADDR[@]}"; do
-		if [ ! -e "$ANDROID_HOME/build-tools/$i" ]; then
-			PACKAGES=$PACKAGES,build-tools-$i
-		fi
-	done
-
-	if [ ! -z "$PACKAGES" ]; then
-		echo "installing $PACKAGES"
-		echo y | android update sdk -a --filter $PACKAGES --no-ui
-	else
-		echo "no build-tools packages to update"
-	fi
+	echo "downloading cmake..."
+	echo y | sdkmanager --install "cmake;$CMAKE_VERSION"
 fi
 
 /sbin/tini -- /usr/local/bin/jenkins.sh
